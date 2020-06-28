@@ -1,0 +1,5 @@
+dist/ecs
+*.sublime-workspace
+.deps
+.obj
+src/generated

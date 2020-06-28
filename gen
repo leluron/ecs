@@ -1,0 +1,25 @@
+#!/bin/bash
+
+echo -n "" > src/generated/components.def
+echo -n "" > src/generated/components_include.h
+
+for file in src/components/*
+do
+    if [[ -f $file ]]; then
+        compname=`echo $file | sed 's/^.*\/\([a-zA-Z]*\)\.h$/\1/'`
+        echo "X($compname)" >> src/generated/components.def
+        echo "#include \"../components/$compname.h\"" >> src/generated/components_include.h
+    fi
+done
+
+echo -n "" > src/generated/processes.def
+echo -n "" > src/generated/processes_include.h
+
+for file in src/processes/*
+do
+    if [[ -f $file ]]; then
+        compname=`echo $file | sed 's/^.*\/\([a-zA-Z]*\)\.h$/\1/'`
+        echo "X($compname)" >> src/generated/processes.def
+        echo "#include \"../processes/$compname.h\"" >> src/generated/processes_include.h
+    fi
+done
