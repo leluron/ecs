@@ -29,15 +29,16 @@ lua_State* ECS::loadLuaFile(const char* filename) {
         return 1;
     }, 1);
     lua_setglobal(L, "createEntity");
-    // Define "exitScript" function
-    lua_pushboolean(L, 0);
-    lua_setglobal(L, "exitScript__");
-    lua_pushcfunction(L, [](lua_State *L) -> int {
-        lua_pushboolean(L, 1);
-        lua_setglobal(L, "exitScript__");
+    // define "addScript" function
+    lua_pushlightuserdata(L, this);
+    lua_pushcclosure(L, [](lua_State *L) -> int {
+        auto pthis = static_cast<ECS*>(lua_touserdata(L, lua_upvalueindex(1)));
+        auto filename = lua_tostring(L, -1);
+        lua_pop(L, 1);
+        pthis->addScript(filename);
         return 0;
-    });
-    lua_setglobal(L, "exitScript");
+    }, 1);
+    lua_setglobal(L, "addScript");
     // Run script
     lua_call(L, 0, 0);
     return L;
@@ -82,24 +83,21 @@ bool ECS::step() {
     );
     bornEntities.clear();
     // Run scripts
-    for (auto s : scripts) {
-        auto id = s.first;
-        auto &list = s.second;
-        for (auto &L : list) {
-            lua_getglobal(L, "process");
-            luapushEntity(L, id);
-            lua_call(L, 1, 0);
-            lua_getglobal(L, "exitScript__");
-            auto quit = lua_tonumber(L, -1);
+    for (auto L : scripts) {
+        for (auto e : liveEntities) {
+            luapushEntity(L, e);
+            lua_getglobal(L, "allow");
+            lua_pushvalue(L, -2);
+            lua_call(L, 1, 1);
+            auto allowed = lua_toboolean(L, -1);
             lua_pop(L, 1);
-            if (quit) {
-                lua_close(L);
-                L = nullptr;
+            if (allowed) {
+                lua_getglobal(L, "process");
+                lua_pushvalue(L, -2);
+                lua_call(L, 1, 0);
             }
+            lua_pop(L, 1);
         }
-        list.erase(std::remove_if(list.begin(), list.end(),
-            [](auto l){return l;}), list.end());
-
     }
     // Run processes
     for (auto it : processes) {
@@ -128,11 +126,12 @@ bool ECS::step() {
     return !exiting;
 }
 
-void ECS::addScript(entity_id e, const char* filename) {
+void ECS::addScript(const char* filename) {
     auto L = loadLuaFile(filename);
     lua_getglobal(L, "process");
-    if (lua_isfunction(L, -1)) {
-        scripts[e].push_back(L);
+    lua_getglobal(L, "allow");
+    if (lua_isfunction(L, -1) && lua_isfunction(L, -2)) {
+        scripts.push_back(L);
     }
     lua_pop(L, 1);
 }
@@ -232,20 +231,6 @@ void ECS::luapushEntity(lua_State *L, entity_id id) {
         auto id = lua_tonumber(L, -1);
         lua_pop(L, 2);
         pthis->destroy(id);
-        return 0;
-    }, 1);
-    lua_settable(L, -3);
-    // Set addScript function
-    lua_pushstring(L, "addScript");
-    lua_pushlightuserdata(L, this);
-    lua_pushcclosure(L, [](lua_State *L) -> int {
-        auto pthis = static_cast<ECS*>(lua_touserdata(L, lua_upvalueindex(1)));
-        auto filename = lua_tostring(L, -1);
-        lua_pushstring(L, "id");
-        lua_rawget(L, -3);
-        auto id = lua_tonumber(L, -1);
-        lua_pop(L, 3);
-        pthis->addScript(id, filename);
         return 0;
     }, 1);
     lua_settable(L, -3);

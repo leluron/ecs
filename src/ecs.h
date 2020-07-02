@@ -9,6 +9,7 @@
 #include <unordered_map>
 #include <memory>
 #include <lua.hpp>
+#include <vector>
 
 using entity_id = uint32_t;
 
@@ -43,7 +44,7 @@ public:
     }
     void destroy(entity_id e);
 
-    void addScript(entity_id e, const char* filename);
+    void addScript(const char* filename);
 
 private:
     lua_State* loadLuaFile(const char* filename);
@@ -69,10 +70,7 @@ private:
         std::shared_ptr<void>
     > components;
 
-    std::unordered_map<
-        entity_id,
-        std::vector<lua_State*>
-    > scripts;
+     std::vector<lua_State*> scripts;
 
     std::vector<entity_id> 
         bornEntities,

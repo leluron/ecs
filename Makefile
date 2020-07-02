@@ -21,7 +21,7 @@ GEN_FILES_FULL = $(patsubst %, $(SRCDIR)/generated/%, $(GEN_FILES))
 ecs: $(BINARY)
 
 $(BINARY): $(OBJPATH)
-	g++ $^ -o $@ $(FLAGS) -llua
+	g++ $^ -o $@ $(FLAGS) -llua -ldl
 
 clean:
 	rm -rf $(OBJDIR)
